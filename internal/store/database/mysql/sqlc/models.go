@@ -8,7 +8,7 @@ type Deposit struct {
 	ID             int32
 	Blocknumber    int32
 	Blocktimestamp int32
-	Fee            int32
+	Fee            int64
 	Hash           string
 	Pubkey         string
 }

@@ -28,6 +28,8 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=luganodes
+    volumes:
+      - ../../.data:/var/lib/mysql
 
   redis:
     image: redis:latest
@@ -36,6 +38,132 @@ services:
       - luganodes
     ports:
       - "${REDIS_PORT}:6379"
+
+  # Services
+  luganodes:
+    build:
+      context: ../../
+      dockerfile: ./build/docker/luganodes/Dockerfile
+    container_name: luganodes
+    networks:
+      - luganodes
+    environment:
+      - REST_API_PORT=${REST_API_PORT}
+      - MYSQL_PORT=${MYSQL_PORT}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_HOST=${MYSQL_HOST}
+      - GRAFANA_LOKI_PORT=${GRAFANA_LOKI_PORT}
+      - GRAFANA_LOKI_HOST=${GRAFANA_LOKI_HOST}
+      - ZIPKIN_HOST=${ZIPKIN_HOST}
+    ports:
+      - ${REST_API_PORT}:${REST_API_PORT}
+    command: ["./app"]
+    depends_on:
+      kafka:
+        condition: service_healthy 
+  
+  fetcher:
+    build:
+      context: ../../
+      dockerfile: ./build/docker/fetcher/Dockerfile
+    container_name: fetcher
+    networks:
+      - luganodes
+    environment:
+      - KAFKA_PORT=${KAFKA_PORT}
+      - KAFKA_HOST=${KAFKA_HOST}
+      - WS_ENDPOINT=${WS_ENDPOINT}
+      - ADDRESS=${ADDRESS}
+      - GRAFANA_LOKI_PORT=${GRAFANA_LOKI_PORT}
+      - GRAFANA_LOKI_HOST=${GRAFANA_LOKI_HOST}
+      - ZIPKIN_HOST=${ZIPKIN_HOST}
+    command: ["./app"]
+    depends_on:
+      kafka:
+        condition: service_healthy 
+  
+
+  store:
+    build:
+      context: ../../
+      dockerfile: ./build/docker/store/Dockerfile
+    container_name: store
+    networks:
+      - luganodes
+    environment:
+      - KAFKA_PORT=${KAFKA_PORT}
+      - KAFKA_HOST=${KAFKA_HOST}
+      - MYSQL_PORT=${MYSQL_PORT}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_HOST=${MYSQL_HOST}
+      - GRAFANA_LOKI_PORT=${GRAFANA_LOKI_PORT}
+      - GRAFANA_LOKI_HOST=${GRAFANA_LOKI_HOST}
+      - ZIPKIN_HOST=${ZIPKIN_HOST}
+    command: ["./app"]
+    depends_on:
+      kafka:
+        condition: service_healthy 
+
+  frontend:
+    build:
+      context: ../../
+      dockerfile: ./build/docker/frontend/Dockerfile
+    container_name: frontend
+    networks:
+      - luganodes
+    ports:
+      - ${FRONTEND_PORT}:${FRONTEND_PORT}
+    depends_on:
+      kafka:
+        condition: service_healthy 
+
+   # Metrics, Logging and Tracing
+  loki:
+    image: grafana/loki
+    container_name: loki
+    networks:
+      - luganodes
+    ports:
+      - "${GRAFANA_LOKI_PORT}:3100"
+
+  grafana:
+    image: grafana/grafana-oss
+    container_name: grafana
+    networks:
+      - luganodes
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    depends_on:
+      - loki
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ADMIN_USER=samarth
+      - GF_SECURITY_ADMIN_PASSWORD=password
+    volumes:
+      - ../../config/grafana:/etc/grafana/provisioning
+      - ../../config/grafana/dashboards:/var/lib/grafana/dashboards
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    networks:
+      - luganodes
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yaml"
+    ports:
+      - ${PROMETHEUS_PORT}:9090
+    restart: unless-stopped
+    volumes:
+      - ../../config/prometheus:/etc/prometheus
+
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    networks:
+      - luganodes
+    ports:
+      - "9411:9411"
 
 networks:
   luganodes:

@@ -4,6 +4,7 @@ import (
 	"github.com/samarthasthan/luganodes-task/internal/store/database"
 	consumer "github.com/samarthasthan/luganodes-task/internal/store/kafka"
 	"github.com/samarthasthan/luganodes-task/pkg/env"
+	"github.com/samarthasthan/luganodes-task/pkg/logger"
 )
 
 var (
@@ -25,13 +26,16 @@ func init() {
 }
 
 func main() {
+	// Initialize the logger
+	log := logger.NewLogger("store")
+
 	// Create mysql database
 	sql := database.NewMySQL()
 	sql.Connect("root:" + MYSQL_ROOT_PASSWORD + "@tcp(" + MYSQL_HOST + ":" + MYSQL_PORT + ")/luganodes")
 	defer sql.Close()
 
 	// Create kafka consumer
-	kafka := consumer.NewKafkaConsumer(KAFKA_HOST+":"+KAFKA_PORT, sql)
+	kafka := consumer.NewKafkaConsumer(KAFKA_HOST+":"+KAFKA_PORT, sql, log)
 
 	// Consume messages from kafka and store in mysql and redis
 	kafka.Consume()

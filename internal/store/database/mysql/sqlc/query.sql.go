@@ -55,7 +55,7 @@ INSERT INTO Deposit (blockNumber, blockTimestamp, fee, hash, pubkey) VALUES (?, 
 type InsertDepositParams struct {
 	Blocknumber    int32
 	Blocktimestamp int32
-	Fee            int32
+	Fee            int64
 	Hash           string
 	Pubkey         string
 }

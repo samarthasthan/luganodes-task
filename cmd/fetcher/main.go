@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+
 	"math/big"
 	"time"
 
@@ -13,6 +13,7 @@ import (
 	"github.com/samarthasthan/luganodes-task/internal/fetcher/models"
 
 	"github.com/samarthasthan/luganodes-task/pkg/env"
+	"github.com/samarthasthan/luganodes-task/pkg/logger"
 )
 
 var (
@@ -20,6 +21,7 @@ var (
 	KAFKA_HOST  string
 	WS_ENDPOINT string
 	ADDRESS     string
+	log         *logger.Logger
 )
 
 func init() {
@@ -30,6 +32,9 @@ func init() {
 }
 
 func main() {
+	// Initialize the logger
+	log = logger.NewLogger("fetcher")
+
 	// New kafka Producer
 	producer := kafka.NewKafkaProducer(KAFKA_HOST + ":" + KAFKA_PORT)
 	defer producer.Producer.Close()
@@ -53,7 +58,7 @@ func main() {
 		case err := <-sub.Err():
 			log.Fatalf("Subscription error: %v", err)
 		case header := <-headers:
-			log.Printf("New block mined: %v", header)
+			log.Printf("New block mined: %v", header.Number)
 
 			// Call a function to check for deposits in this block
 			checkForDeposits(client, header.Number, header.Time, producer)
@@ -104,21 +109,25 @@ func processDeposit(client *ethclient.Client, tx *types.Transaction, blockNumber
 		log.Printf("Failed to get transaction receipt: %v", err)
 		return
 	}
+
+	// Calculate the fee in Wei
 	fee := new(big.Int).Mul(tx.GasPrice(), big.NewInt(int64(receipt.GasUsed)))
+
+	// Convert block timestamp to a human-readable format
+	blockTime := time.Unix(int64(blockTimestamp), 0).UTC()
 
 	// Log the deposit details
 	log.Printf("Deposit Details:")
 	log.Printf("Block Number: %s", blockNumber.String())
-	log.Printf("Block Timestamp: %s", time.Unix(int64(blockTimestamp), 0).UTC().String()) // Convert UNIX timestamp to human-readable
+	log.Printf("Block Timestamp: %s", blockTime.String())
 	log.Printf("Transaction Fee: %s Wei", fee.String())
 	log.Printf("Transaction Hash: %s", tx.Hash().Hex())
 	log.Printf("Sender Address (Pubkey): %s", senderAddress.Hex())
 
-	// produce the deposit to kafka
 	deposit := &models.Deposit{
 		BlockNumber:    int(blockNumber.Int64()),
 		BlockTimestamp: int(blockTimestamp),
-		Fee:            int(fee.Int64()),
+		Fee:            fee.Int64(),
 		Hash:           tx.Hash().Hex(),
 		Pubkey:         senderAddress.Hex(),
 	}
