@@ -6,6 +6,7 @@ The Ethereum Deposit Tracker is designed to monitor and record ETH deposits on t
 
 **Note:** Due to time constraints, several aspects of the project are still in need of improvement. These include variable names, additional comments, cache implementation, telegram bot alert and Zipkin tracing.
 
+**Development Note:** To demonstrate functionality, a sample deposit has been added manually as the Beacon Deposit Contract updates infrequently. The tracker will automatically add new transactions to the database as they occur. To check the most recent transactions on the Beacon Deposit Contract, visit [Etherscan](https://etherscan.io/address/0x00000000219ab540356cBB839Cbe05303d7705Fa).
 ## Technology Stack
 
 - **Backend**: Go
