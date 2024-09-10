@@ -90,20 +90,41 @@ func checkForDeposits(client *ethclient.Client, blockNumber *big.Int, blockTimes
 	}
 }
 
-// processDeposit processes each deposit transaction and logs the required details
 func processDeposit(client *ethclient.Client, tx *types.Transaction, blockNumber *big.Int, blockTimestamp uint64, kafka *kafka.KafkaProducer) {
-	// Use the chain ID signer to extract the sender address
-	chainID := big.NewInt(1) // Mainnet chain ID
-	signer := types.NewEIP155Signer(chainID)
+	// Chain ID for Mainnet
+	chainID := big.NewInt(1)
 
-	// Extract the sender's address from the transaction
-	senderAddress, err := types.Sender(signer, tx)
+	var senderAddress common.Address
+	var err error
+
+	// Check transaction type and use the appropriate signer
+	switch tx.Type() {
+	case types.LegacyTxType:
+		// For legacy transactions (pre-EIP-155)
+		signer := types.NewEIP155Signer(chainID)
+		senderAddress, err = types.Sender(signer, tx)
+
+	case types.AccessListTxType:
+		// For EIP-2930 access list transactions
+		signer := types.NewEIP2930Signer(chainID)
+		senderAddress, err = types.Sender(signer, tx)
+
+	case types.DynamicFeeTxType:
+		// For EIP-1559 dynamic fee transactions
+		signer := types.NewLondonSigner(chainID)
+		senderAddress, err = types.Sender(signer, tx)
+
+	default:
+		log.Printf("Unsupported transaction type: %d", tx.Type())
+		return
+	}
+
 	if err != nil {
 		log.Printf("Failed to extract sender's address: %v", err)
 		return
 	}
 
-	// Get the transaction fee (Gas used * Gas price)
+	// Get the transaction receipt to calculate the transaction fee
 	receipt, err := client.TransactionReceipt(context.Background(), tx.Hash())
 	if err != nil {
 		log.Printf("Failed to get transaction receipt: %v", err)
@@ -124,6 +145,7 @@ func processDeposit(client *ethclient.Client, tx *types.Transaction, blockNumber
 	log.Printf("Transaction Hash: %s", tx.Hash().Hex())
 	log.Printf("Sender Address (Pubkey): %s", senderAddress.Hex())
 
+	// Prepare the deposit data for Kafka
 	deposit := &models.Deposit{
 		BlockNumber:    int(blockNumber.Int64()),
 		BlockTimestamp: int(blockTimestamp),
@@ -132,5 +154,6 @@ func processDeposit(client *ethclient.Client, tx *types.Transaction, blockNumber
 		Pubkey:         senderAddress.Hex(),
 	}
 
+	// Send the deposit details to Kafka
 	kafka.Produce(deposit)
 }

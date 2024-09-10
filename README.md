@@ -7,6 +7,7 @@ The Ethereum Deposit Tracker is designed to monitor and record ETH deposits on t
 **Note:** Due to time constraints, several aspects of the project are still in need of improvement. These include variable names, additional comments, cache implementation, telegram bot alert and Zipkin tracing.
 
 **Development Note:** To demonstrate functionality, a sample deposit has been added manually as the Beacon Deposit Contract updates infrequently. The tracker will automatically add new transactions to the database as they occur. To check the most recent transactions on the Beacon Deposit Contract, visit [Etherscan](https://etherscan.io/address/0x00000000219ab540356cBB839Cbe05303d7705Fa).
+
 ## Technology Stack
 
 - **Backend**: Go
@@ -25,7 +26,7 @@ _High-level design of the multi-vendor e-commerce platform._
 
 **Note:** NGINX Reverse proxy can be use to attach the domain
 
-- **Grafana Dashboard**: [http://3.7.73.40:15000/d/bdxh7dpdg8o3ka/luganodes?orgId=1](http://3.7.73.40:15000/d/bdxh7dpdg8o3ka/luganodes?orgId=1)
+- **Grafana Dashboard**: [http://3.7.73.40:15000/dashboards](http://3.7.73.40:15000/dashboards)
 - **Frontend**: [http://3.7.73.40:3000/](http://3.7.73.40:3000/)
 - **API Endpoint**: [http://3.7.73.40:8000/deposits?page=1&limit=10](http://3.7.73.40:8000/deposits?page=1&limit=10)
 
