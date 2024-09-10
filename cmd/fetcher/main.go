@@ -39,24 +39,39 @@ func main() {
 	producer := kafka.NewKafkaProducer(KAFKA_HOST + ":" + KAFKA_PORT)
 	defer producer.Producer.Close()
 
+	// Start the connection and subscription loop
+	for {
+		err := startWebSocketSubscription(producer)
+		if err != nil {
+			log.Printf("Error: %v", err)
+			log.Println("Reconnecting to WebSocket...")
+			time.Sleep(5 * time.Second) // Wait before reconnecting
+		}
+	}
+}
+
+// startWebSocketSubscription handles the WebSocket connection and subscription
+func startWebSocketSubscription(producer *kafka.KafkaProducer) error {
 	// Connect to the WebSocket
 	client, err := ethclient.Dial(WS_ENDPOINT)
 	if err != nil {
-		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
+		return err
 	}
+	defer client.Close()
 
-	// Subscribe to the new block header events
+	// Subscribe to new block headers
 	headers := make(chan *types.Header)
 	sub, err := client.SubscribeNewHead(context.Background(), headers)
 	if err != nil {
-		log.Fatalf("Failed to subscribe to new block headers: %v", err)
+		return err
 	}
+	defer sub.Unsubscribe()
 
 	// Monitor each new block
 	for {
 		select {
 		case err := <-sub.Err():
-			log.Fatalf("Subscription error: %v", err)
+			return err // Return the error to trigger a reconnection
 		case header := <-headers:
 			log.Printf("New block mined: %v", header.Number)
 
