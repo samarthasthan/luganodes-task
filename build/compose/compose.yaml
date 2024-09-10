@@ -1,0 +1,42 @@
+services:
+  # Kafka
+  kafka:
+    build:
+      context: ../docker/kafka
+      dockerfile: ./Dockerfile
+    container_name: kafka
+    ports:
+      - ${KAFKA_EXTERNAL_PORT}:9092
+    networks:
+      - luganodes
+    healthcheck:
+      test:
+        ["CMD-SHELL", "./wait-for.sh kafka:${KAFKA_PORT} -- ./kafka_setup.sh"]
+      interval: 10s
+      timeout: 10s
+      retries: 100
+      start_period: 10s
+  
+  # Databases
+  mysql:
+    image: mysql:latest
+    container_name: mysql
+    networks:
+      - luganodes
+    ports:
+      - "${MYSQL_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=luganodes
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    networks:
+      - luganodes
+    ports:
+      - "${REDIS_PORT}:6379"
+
+networks:
+  luganodes:
+    driver: bridge
